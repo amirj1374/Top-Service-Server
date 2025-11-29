@@ -22,12 +22,28 @@ model User {
 }
 
 model ProductType {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique      // مثلاً "روغن موتور" یا "فیلتر هوا"
+  id          Int       @id @default(autoincrement())
+  name        String    @unique      // مثلاً "روغن موتور" یا "فیلتر هوا"
   description String?                // توضیح اختیاری درباره نوع محصول
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
 
   @@map("product_types")
+}
+
+model Product {
+  id           String      @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  stock        Int         @default(0)   // موجودی
+  productTypeId Int
+  productType  ProductType @relation(fields: [productTypeId], references: [id])
+  groupByItem  String?     // Grouping field based on productType.name
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("products")
 }
