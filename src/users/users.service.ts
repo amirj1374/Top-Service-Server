@@ -1,68 +1,144 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { createPaginatedResponse } from '../common/utils/pagination.util';
+import * as bcrypt from 'bcrypt';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(page = 0, size = 10) {
+  async findAll(page = 0, size = 10): Promise<PaginatedResponse<Omit<User, 'password'>>> {
     const skip = page * size;
     const take = size;
 
     const [content, totalElements] = await Promise.all([
       this.prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          age: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: {
-          createdAt: 'desc'
+          createdAt: 'desc',
         },
         skip,
-        take
+        take,
       }),
-      this.prisma.user.count()
+      this.prisma.user.count(),
     ]);
 
-    return {
-      content,
-      page: {
-        size,
-        number: page,
-        totalElements,
-        totalPages: Math.ceil(totalElements / size)
-      }
-    };
+    return createPaginatedResponse(content, totalElements, page, size);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Omit<User, 'password'>> {
     const user = await this.prisma.user.findUnique({
-      where: { id }
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        age: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
 
     return user;
   }
 
-  async create(createUserDto: CreateUserDto) {
-    return this.prisma.user.create({
-      data: createUserDto
+  async create(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
+    const { password, ...rest } = createUserDto;
+
+    // Check if email already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: rest.email },
     });
+
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        name: createUserDto.name,
+        email: createUserDto.email,
+        age: createUserDto.age ?? null,
+        password: hashedPassword,
+      } as { name: string; email: string; age: number | null; password: string },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        age: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
-    await this.findOne(id); // Check if exists
-    return this.prisma.user.update({
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<Omit<User, 'password'>> {
+    // Check if user exists
+    await this.findOne(id);
+
+    // If email is being updated, check for conflicts
+    if (updateUserDto.email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: updateUserDto.email },
+      });
+
+      if (existingUser && existingUser.id !== id) {
+        throw new ConflictException('User with this email already exists');
+      }
+    }
+
+    // Prepare update data
+    const updateData: {
+      name?: string;
+      email?: string;
+      age?: number | null;
+      password?: string;
+    } = { ...updateUserDto };
+
+    // If password is being updated, hash it
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    }
+
+    const user = await this.prisma.user.update({
       where: { id },
-      data: updateUserDto
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        age: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
+
+    return user;
   }
 
-  async remove(id: string) {
-    await this.findOne(id); // Check if exists
-    return this.prisma.user.delete({
-      where: { id }
+  async remove(id: string): Promise<void> {
+    await this.findOne(id);
+    await this.prisma.user.delete({
+      where: { id },
     });
   }
 }

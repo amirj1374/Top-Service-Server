@@ -1,20 +1,16 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  async findAll(
-    @Query('page') page?: string,
-    @Query('size') size?: string
-  ) {
-    const pageNum = page ? parseInt(page) : 0;
-    const sizeNum = size ? parseInt(size) : 10;
-    return this.usersService.findAll(pageNum, sizeNum);
+  async findAll(@Query() query: PaginationQueryDto) {
+    return this.usersService.findAll(query.page ?? 0, query.size ?? 10);
   }
 
   @Get(':id')
@@ -23,6 +19,7 @@ export class UsersController {
   }
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   async create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
@@ -36,9 +33,9 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string) {
     await this.usersService.remove(id);
-    return { status: 'success', data: null };
   }
 }
 

@@ -2,19 +2,45 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PaginatedResponse } from '../common/interfaces/paginated-response.interface';
+import { createPaginatedResponse } from '../common/utils/pagination.util';
+import { Product, ProductType } from '@prisma/client';
+
+type ProductWithType = Product & {
+  productType: Pick<ProductType, 'id' | 'name' | 'description' | 'isActive'>;
+};
+
+type ProductResponse = Omit<ProductWithType, 'groupByItem'> & {
+  groupByItem: string | null;
+};
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(page = 0, size = 10) {
+  private mapProductToResponse(product: ProductWithType): ProductResponse {
+    const { groupByItem, ...rest } = product;
+    return {
+      ...rest,
+      groupByItem: groupByItem || product.productType?.name || null,
+    };
+  }
+
+  async findAll(page = 0, size = 10): Promise<PaginatedResponse<ProductResponse>> {
     const skip = page * size;
     const take = size;
 
     const [products, totalElements] = await Promise.all([
       this.prisma.product.findMany({
         include: {
-          productType: true,
+          productType: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              isActive: true,
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -25,28 +51,23 @@ export class ProductsService {
       this.prisma.product.count(),
     ]);
 
-    // Ensure groupByItem is included in response
-    const content = products.map((product: any) => ({
-      ...product,
-      groupByItem: product.groupByItem || product.productType?.name || null,
-    }));
+    const content = products.map((product) => this.mapProductToResponse(product));
 
-    return {
-      content,
-      page: {
-        size,
-        number: page,
-        totalElements,
-        totalPages: Math.ceil(totalElements / size),
-      },
-    };
+    return createPaginatedResponse(content, totalElements, page, size);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<ProductResponse> {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
-        productType: true,
+        productType: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -54,17 +75,11 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    // Ensure groupByItem is included in response
-    const productResponse: any = {
-      ...product,
-      groupByItem: (product as any).groupByItem || product.productType?.name || null,
-    };
-
-    return productResponse;
+    return this.mapProductToResponse(product);
   }
 
-  async create(createProductDto: CreateProductDto) {
-    // Fetch productType to get the name for groupByItem
+  async create(createProductDto: CreateProductDto): Promise<ProductResponse> {
+    // Verify productType exists
     const productType = await this.prisma.productType.findUnique({
       where: { id: createProductDto.productTypeId },
     });
@@ -77,24 +92,39 @@ export class ProductsService {
 
     const product = await this.prisma.product.create({
       data: {
-        ...createProductDto,
+        name: createProductDto.name,
+        description: createProductDto.description,
+        price: createProductDto.price,
         stock: createProductDto.stock ?? 0,
-        ['groupByItem']: productType.name,
-      } as any,
+        productTypeId: createProductDto.productTypeId,
+        groupByItem: productType.name,
+      },
       include: {
-        productType: true,
+        productType: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+          },
+        },
       },
     });
 
-    // Exclude groupByItem from response
-    const { ['groupByItem']: _, ...productResponse } = product as any;
-    return productResponse;
+    return this.mapProductToResponse(product);
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
-    const existingProduct = await this.findOne(id); // Check if exists
+  async update(id: string, updateProductDto: UpdateProductDto): Promise<ProductResponse> {
+    // Check if product exists
+    const existingProduct = await this.prisma.product.findUnique({
+      where: { id },
+    });
 
-    // If productTypeId is being updated, fetch the new productType name
+    if (!existingProduct) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    // If productTypeId is being updated, verify it exists
     let groupByItem: string | undefined;
     if (updateProductDto.productTypeId) {
       const productType = await this.prisma.productType.findUnique({
@@ -110,25 +140,43 @@ export class ProductsService {
       groupByItem = productType.name;
     }
 
+    // Build update data
+    const updateData: Partial<Product> & { groupByItem?: string } = {
+      ...updateProductDto,
+    };
+
+    if (groupByItem) {
+      updateData.groupByItem = groupByItem;
+    }
+
     const product = await this.prisma.product.update({
       where: { id },
-      data: {
-        ...updateProductDto,
-        ...(groupByItem && { ['groupByItem']: groupByItem }),
-      } as any,
+      data: updateData,
       include: {
-        productType: true,
+        productType: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isActive: true,
+          },
+        },
       },
     });
 
-    // Exclude groupByItem from response
-    const { ['groupByItem']: _, ...productResponse } = product as any;
-    return productResponse;
+    return this.mapProductToResponse(product);
   }
 
-  async remove(id: string) {
-    await this.findOne(id); // Check if exists
-    return this.prisma.product.delete({
+  async remove(id: string): Promise<void> {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    await this.prisma.product.delete({
       where: { id },
     });
   }

@@ -1,8 +1,18 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus, HttpException } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpStatus,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -15,21 +25,57 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      
+
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
+        error = exception.constructor.name;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        message = (exceptionResponse as any).message || message;
-        error = (exceptionResponse as any).error || error;
+        const responseObj = exceptionResponse as Record<string, unknown>;
+        const msg = responseObj.message;
+        message =
+          (Array.isArray(msg)
+            ? msg.join(', ')
+            : typeof msg === 'string'
+            ? msg
+            : message) || message;
+        error = (responseObj.error as string) || error;
       }
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      // Handle Prisma known errors
+      switch (exception.code) {
+        case 'P2002':
+          status = HttpStatus.CONFLICT;
+          error = 'Conflict';
+          message = 'Unique constraint violation';
+          break;
+        case 'P2025':
+          status = HttpStatus.NOT_FOUND;
+          error = 'Not Found';
+          message = 'Record not found';
+          break;
+        case 'P2003':
+          status = HttpStatus.BAD_REQUEST;
+          error = 'Bad Request';
+          message = 'Foreign key constraint violation';
+          break;
+        default:
+          this.logger.error(`Prisma error ${exception.code}: ${exception.message}`);
+          status = HttpStatus.BAD_REQUEST;
+          error = 'Bad Request';
+          message = 'Database operation failed';
+      }
+    } else if (exception instanceof Prisma.PrismaClientValidationError) {
+      status = HttpStatus.BAD_REQUEST;
+      error = 'Bad Request';
+      message = 'Validation error: Invalid data provided';
     } else if (exception instanceof Error) {
       message = exception.message;
-      
-      // Prisma errors
-      if (message.includes('not found')) {
-        status = HttpStatus.NOT_FOUND;
-        error = 'Not Found';
-      }
+
+      // Log unexpected errors
+      this.logger.error(
+        `Unexpected error: ${exception.message}`,
+        exception.stack,
+      );
     }
 
     const errorResponse = {
