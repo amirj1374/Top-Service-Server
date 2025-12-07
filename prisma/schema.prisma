@@ -48,3 +48,39 @@ model Product {
 
   @@map("products")
 }
+
+model CarModel {
+  id          String     @id @default(uuid())
+  name        String
+  brand       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  cars        Car[]
+
+  @@map("car_models")
+}
+
+model Customer {
+  id          String     @id @default(uuid())
+  fullName    String
+  phone       String
+  cars        Car[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("customers")
+}
+
+model Car {
+  id          String     @id @default(uuid())
+  title       String?    // Car title/name (ex: "پژو 206 صندوق دار")
+  plate       String     @unique  // Full plate string (ex: "12 م 345 67")
+  carModelId  String
+  carModel    CarModel   @relation(fields: [carModelId], references: [id])
+  customerId  String
+  customer    Customer   @relation(fields: [customerId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("cars")
+}

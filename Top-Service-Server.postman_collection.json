@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "top-service-server-collection",
 		"name": "Top Service Server API",
-		"description": "Complete API collection for Top Service Server with authentication, users, products, and product types",
+		"description": "Complete API collection for Top Service Server with authentication, users, products, product types, and customers",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -728,6 +728,187 @@
 				}
 			],
 			"description": "Product type management endpoints"
+		},
+		{
+			"name": "Customers",
+			"item": [
+				{
+					"name": "Get All Customers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/customers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"customers"
+							]
+						},
+						"description": "Get list of all customers with their cars and car model information. Each customer can have multiple cars."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customer by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/customers/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"customers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "00000000-0000-0000-0000-000000000201",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Get a specific customer by ID with all their cars and car model information"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"علی احمدی\",\n  \"phone\": \"09123456789\",\n  \"cars\": [\n    {\n      \"title\": \"پژو 206 صندوق دار\",\n      \"plate\": \"12 م 345 67\",\n      \"carModelId\": \"00000000-0000-0000-0000-000000000001\"\n    },\n    {\n      \"title\": \"پژو 207 صندوق دار\",\n      \"plate\": \"23 ب 456 78\",\n      \"carModelId\": \"00000000-0000-0000-0000-000000000002\"\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/customers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"customers"
+							]
+						},
+						"description": "Create a new customer with one or more cars. Each car must have a unique plate. The carModelId must reference an existing car model. The cars array is optional - you can create a customer without cars."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Customer",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"علی احمدی\",\n  \"phone\": \"09123456790\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/customers/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"customers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "00000000-0000-0000-0000-000000000201",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Update customer information (fullName and phone only). To manage cars, use separate car management endpoints."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Customer",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/customers/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"customers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "00000000-0000-0000-0000-000000000201",
+									"description": "Customer UUID"
+								}
+							]
+						},
+						"description": "Delete a customer by ID. All associated cars will also be deleted."
+					},
+					"response": []
+				}
+			],
+			"description": "Customer management endpoints"
 		},
 		{
 			"name": "Health",
