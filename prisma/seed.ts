@@ -22,10 +22,43 @@ async function main() {
       name: 'John Doe',
       email: 'john@example.com',
       password: hashedPassword,
+      customizer: 'default-theme',
       age: 30,
     },
   });
   console.log('✅ Test user created:', testUser.email);
+
+  // Create Services
+  console.log('Creating services...');
+  const services = [
+    {
+      name: 'بالانس',
+      price: 150000,
+      description: 'بالانس چرخ',
+      isActive: true,
+    },
+    {
+      name: 'تنظیم باد',
+      price: 50000,
+      description: 'تنظیم باد لاستیک‌ها',
+      isActive: true,
+    },
+    {
+      name: 'تعویض روغن',
+      price: 250000,
+      description: 'تعویض روغن موتور به همراه فیلتر',
+      isActive: true,
+    },
+  ];
+
+  for (const service of services) {
+    await prisma['service'].upsert({
+      where: { name: service.name },
+      update: {},
+      create: service,
+    });
+  }
+  console.log(`✅ Services created (${services.length})`);
 
   // Create Product Types if they don't exist
   console.log('Creating product types...');

@@ -15,6 +15,7 @@ model User {
   name      String
   email     String   @unique
   password  String
+  customizer String? // Optional theme/font customization token
   age       Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -83,4 +84,16 @@ model Car {
   updatedAt   DateTime   @updatedAt
 
   @@map("cars")
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String   @unique          // نام خدمت مثل بالانس، تنظیم باد…
+  price       Int                         // مبلغ خدمت – اجباری
+  description String?                      // توضیح اختیاری
+  isActive    Boolean  @default(true)     // فعال یا غیرفعال
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
 }

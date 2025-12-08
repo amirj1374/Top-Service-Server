@@ -14,5 +14,9 @@ export class CreateUserDto {
   @IsNumber()
   @IsOptional()
   age?: number;
+
+  @IsString()
+  @IsOptional()
+  customizer?: string;
 }
 

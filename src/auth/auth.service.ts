@@ -41,11 +41,13 @@ export class AuthService {
         email,
         password: hashedPassword,
         name,
+        customizer: null,
       },
       select: {
         id: true,
         name: true,
         email: true,
+        customizer: true,
         age: true,
         createdAt: true,
         updatedAt: true,

@@ -5,6 +5,11 @@ import { PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
+  // Explicitly expose delegate to satisfy TS language server in consumers
+  public get user() {
+    return super.user;
+  }
+
   async onModuleInit() {
     try {
       await this.$connect();

@@ -6,6 +6,7 @@ import { PaginatedResponse } from '../common/interfaces/paginated-response.inter
 import { createPaginatedResponse } from '../common/utils/pagination.util';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
+import { SetCustomizerDto } from './dto/set-customizer.dto';
 
 @Injectable()
 export class UsersService {
@@ -21,6 +22,7 @@ export class UsersService {
           id: true,
           name: true,
           email: true,
+          customizer: true,
           age: true,
           createdAt: true,
           updatedAt: true,
@@ -44,6 +46,7 @@ export class UsersService {
         id: true,
         name: true,
         email: true,
+        customizer: true,
         age: true,
         createdAt: true,
         updatedAt: true,
@@ -76,12 +79,14 @@ export class UsersService {
         name: createUserDto.name,
         email: createUserDto.email,
         age: createUserDto.age ?? null,
+        customizer: createUserDto.customizer ?? null,
         password: hashedPassword,
-      } as { name: string; email: string; age: number | null; password: string },
+      } as { name: string; email: string; age: number | null; customizer: string | null; password: string },
       select: {
         id: true,
         name: true,
         email: true,
+        customizer: true,
         age: true,
         createdAt: true,
         updatedAt: true,
@@ -111,6 +116,7 @@ export class UsersService {
       name?: string;
       email?: string;
       age?: number | null;
+      customizer?: string | null;
       password?: string;
     } = { ...updateUserDto };
 
@@ -126,6 +132,7 @@ export class UsersService {
         id: true,
         name: true,
         email: true,
+        customizer: true,
         age: true,
         createdAt: true,
         updatedAt: true,
@@ -140,6 +147,37 @@ export class UsersService {
     await this.prisma.user.delete({
       where: { id },
     });
+  }
+
+  async setCustomizerFromToken(userId: string, dto: SetCustomizerDto) {
+    await this.findOne(userId);
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        customizer: dto.customizer ?? null,
+      },
+      select: {
+        customizer: true,
+      },
+    });
+
+    return user;
+  }
+
+  async getCustomizerFromToken(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        customizer: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    return user;
   }
 }
 
